@@ -1,1 +1,64 @@
 
+name: Publish and Release WebAPI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Publish for Multiple Platforms
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [win-x64, osx-x64, osx-arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'  # Adjust if using a different version
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish for ${{ matrix.os }}
+        run: |
+          dotnet publish -c Release -r ${{ matrix.os }} --self-contained true -p:PublishSingleFile=true -o publish/${{ matrix.os }}
+          cd publish
+          zip -r ../${{ matrix.os }}.zip ${{ matrix.os }}
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-artifact
+          path: ${{ matrix.os }}.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          files: |
+            artifacts/**/win-x64.zip
+            artifacts/**/osx-x64.zip
+            artifacts/**/osx-arm64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
