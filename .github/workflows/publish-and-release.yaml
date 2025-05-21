@@ -1,13 +1,12 @@
-
 name: Publish and Release WebAPI
 
 on:
-  push:
-    branches:
-      - main
+  labeled:
+    types: [labeled]
 
 jobs:
   build:
+    if: github.event.label.name == 'Release'
     name: Build and Publish for Multiple Platforms
     runs-on: ubuntu-latest
 
@@ -22,7 +21,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x'  # Adjust if using a different version
+          dotnet-version: '8.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -41,6 +40,7 @@ jobs:
           path: ${{ matrix.os }}.zip
 
   release:
+    if: github.event.label.name == 'Release'
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
